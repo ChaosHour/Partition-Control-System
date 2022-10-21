@@ -1,0 +1,54 @@
+---
+###################################################
+# gds_pm/tasks/FreeBSD.yml
+#
+# Description:  This role installs and optionally nitializes 
+#               the Partition Manager Stored Proceedures, Tables and Event. 
+#
+# Parameters:  node=gds-server 
+#              instance=instance_name_on_server
+#
+#              Parms can also be passed via a json file as -e "@test.json"  
+#
+#              Sample file:
+#              node: gds-snc1-test-db002s1.snc1
+#              instance: duke_nukem
+#
+# Notes:  1. Role will connect to the specific instance and will 
+#            install and initialize the system, though with an 
+#            empty partition_manager_control table.
+#
+#         2. Will install sepately on each instance and NOT 
+#            replication to any slave.  
+#
+###################################################
+
+- name: ON-PREM - Copy partition manager sql file
+  copy:
+    src: partition_manager.sql
+    dest: /tmp/partition_manager.sql
+    owner: root
+    group: wheel
+    mode: 0755
+
+- name: ON-PREM - Install partition manager sql file
+  shell: mysql -S /var/groupon/percona/{{ instance }}/mysql.sock -e 'source /tmp/partition_manager.sql'
+
+- name: ON-PREM - Initialize partition manager
+  shell: mysql -S /var/groupon/percona/{{ instance }}/mysql.sock -e 'call gds_pm.partition_manager_tables'
+
+- name: ON-PREM - Enable event_scheduler
+  shell: mysql -S /var/groupon/percona/{{ instance }}/mysql.sock -e 'SET GLOBAL EVENT_SCHEDULER=1'
+
+- name: ON-PREM - Update event_scheduler in my.cnf
+  ini_file:
+    path: "/var/groupon/service/{{ instance }}-mysql/my.cnf"
+    section: mysqld
+    option: event_scheduler
+    value: 1
+    create: no
+
+- name: ON-PREM - Cleanup
+  file:
+    path: /tmp/partition_manager.sql
+    state: absent

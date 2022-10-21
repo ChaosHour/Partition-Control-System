@@ -1,0 +1,84 @@
+#!/usr/local/bin/bash
+#
+#        _/_/_/    _/_/      _/_/_/
+#     _/        _/    _/  _/
+#      _/_/    _/    _/  _/
+#         _/  _/    _/  _/
+#  _/_/_/      _/_/      _/_/_/
+#
+
+# help
+print_usage (){
+        echo ""
+        echo "$0 -w --> warning count"
+        echo "$0 -c --> critical count"
+	echo "$0 -u --> user"
+	echo "$0 -p --> port"
+        echo "$0 -h --> this help"
+	echo "$0 -s --> Socket to check"
+        echo ""
+        exit 3
+}
+# commandline options given?
+if [ $# -lt 10 ]; then
+        echo "- Not all arguments found!"
+        print_usage
+        exit 3
+fi
+# fetch commandline options
+while test -n "$1"; do
+        case "$1" in
+        -w)
+                warning=$2
+                shift
+        ;;
+        -c)
+                critical=$2
+                shift
+        ;;
+	-s)
+		Socket=$2
+		shift
+	;;
+	-u)
+		User=$2
+		shift
+	;;
+	-p)
+		Port=$2
+		shift
+	;;
+        -h)
+                print_usage
+                shift
+        esac
+        shift
+done
+# Is PM installed?
+result=$(mysql -u ${User} -P ${Port} --${Socket} -e "select schema_name from information_schema.SCHEMATA where schema_name='gds_pm'" -B -N)
+# Exist gracefully if no PM
+if [ ! "$result" ]; then
+        echo "result=1; OK - Partition Manager not installed"
+        exit 0
+fi
+# run MySQL query
+result=$(mysql -u ${User} -P ${Port} --${Socket} -e "select case when (@@event_scheduler='ON') then 1 else 100 end;" -s -N)
+# prevent calc without query output
+if [ ! "$result" ]; then
+        echo "- Got no Output from mysql client"
+        exit 2
+fi
+# status logic
+if [ "`echo "$result > $critical" | bc -l`" = "1" ]; then
+	echo "result=${result}; CRIT - event_scheduler is OFF"
+	exit 2
+elif [ "`echo "$result > $warning" | bc -l`" = "1" ]; then
+        echo "result=${result}; WARN - event_scheduler is ${result}"
+        exit 1
+elif [ "`echo "$result < $critical" | bc -l`" = "1" ] && [ "`echo "$result < $warning" | bc -l`" = "1" ]; then
+	echo "result=${result}; OK - event_scheduler is ${result}"
+	exit 0
+else
+	echo "- Unexpected Output from check"
+	exit 3
+fi

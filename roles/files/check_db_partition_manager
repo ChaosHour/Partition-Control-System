@@ -1,0 +1,79 @@
+#!/usr/local/bin/bash
+#
+#        _/_/_/    _/_/      _/_/_/
+#     _/        _/    _/  _/
+#      _/_/    _/    _/  _/
+#         _/  _/    _/  _/
+#  _/_/_/      _/_/      _/_/_/
+#
+
+# help
+print_usage (){
+        echo ""
+        echo "$0 -w --> warning count"
+        echo "$0 -c --> critical count"
+	echo "$0 -u --> user"
+	echo "$0 -p --> port"
+        echo "$0 -h --> this help"
+	echo "$0 -s --> Socket to check"
+        echo ""
+        exit 3
+}
+# commandline options given?
+if [ $# -lt 10 ]; then
+        echo "- Not all arguments found!"
+        print_usage
+        exit 3
+fi
+# fetch commandline options
+while test -n "$1"; do
+        case "$1" in
+        -w)
+                warning=$2
+                shift
+        ;;
+        -c)
+                critical=$2
+                shift
+        ;;
+	-s)
+		Socket=$2
+		shift
+	;;
+	-u)
+		User=$2
+		shift
+	;;
+	-p)
+		Port=$2
+		shift
+	;;
+        -h)
+                print_usage
+                shift
+        esac
+        shift
+done
+# Is PM installed?
+result=$(mysql -u ${User} -P ${Port} --${Socket} -e "select schema_name from information_schema.SCHEMATA where schema_name='gds_pm'" -B -N)
+# Exist gracefully if no PM
+if [ ! "$result" ]; then
+        echo "result=1; OK - Partition Manager not installed"
+        exit 0
+fi
+# run MySQL query
+output=$(mysql -u ${User} -P ${Port} --${Socket} -e "call gds_pm.partition_manager_ops_check" -s -BN)
+# prevent calc without query output
+if [ ! "$output" ]; then
+        echo "result=0; OK - No RANGE partitions reported"
+        exit 0
+fi
+
+result=$(echo "$output" | grep ERROR -c) 
+if [ "$result" = "0" ]; then
+	echo "result=${result}; OK - Partitions created correctly"
+	exit 0
+else
+        echo "result=${result}; WARN - ERROR creating partitions. See output of 'call gds_pm.partition_manager_ops_check' for details."
+        exit 1
+fi

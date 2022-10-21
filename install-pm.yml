@@ -1,0 +1,43 @@
+---
+# Install Partition Manager to the given AWS endpoint.
+
+- name: Validate global settings
+  gather_facts: false
+  become: false
+  hosts: 127.0.0.1
+  connection: local
+  tasks:
+    - assert:
+        that:
+          - endpoint is defined
+      when: primary is not defined
+    
+    - assert:
+        that:
+          - instance is defined
+      when: primary is defined
+
+    - name: Set Default
+      set_fact:
+        primary: "{{ primary | default('127.0.0.1')}}"
+
+- name: Install Partition Manager on AWS
+  gather_facts: false
+  become: false
+  hosts: 127.0.0.1
+  connection: local 
+  tasks:
+    - include_role:
+        name: gds_pm
+      when: hostvars['endpoint'] is defined
+
+- name: Install Partition Manager on prem
+  gather_facts: false
+  become: true
+  hosts: 
+    - "{{primary|default('127.0.0.1') }}"
+  tasks:
+    - include_role:
+        name: gds_pm
+      when: hostvars['primary'] != '127.0.0.1'
+

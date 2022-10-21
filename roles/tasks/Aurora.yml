@@ -1,0 +1,24 @@
+---
+###################################################
+# gds_pm/tasks/Aurora.yml
+#
+# Description:  This role installs and optionally nitializes 
+#               the Partition Manager Stored Proceedures, Tables and Event. 
+#
+# Parameters:  endpoint=AWS RDS endpoint
+#
+# Notes:  1. Role will connect to the specific endpoint and will 
+#            install and initialize the system, though with an 
+#            empty partition_manager_control table.
+#
+#
+###################################################
+
+- name: AWS - Install partition manager sql file
+  shell: mysql -h {{ endpoint }} -e 'source {{ role_path }}/files/partition_manager.sql'
+  become: false
+
+- name: AWS - Initialize partition manager
+  shell: mysql -h {{ endpoint }} -e 'call gds_pm.partition_manager_tables'
+  become: false
+

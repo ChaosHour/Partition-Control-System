@@ -1,0 +1,31 @@
+---
+###################################################
+# gds_pm/tasks/main.yml
+#
+# Description:  This role installs and optionally nitializes 
+#               the Partition Manager Stored Proceedures, Tables and Event. 
+#
+# Parameters:  node=gds-server 
+#              instance=instance_name_on_server
+#
+#              Parms can also be passed via a json file as -e "@test.json"  
+#
+#              Sample file:
+#              node: gds-snc1-test-db002s1.snc1
+#              instance: duke_nukem
+#
+# Notes:  1. Role will connect to the specific instance and will 
+#            install and initialize the system, though with an 
+#            empty partition_manager_control table.
+#
+###################################################
+
+- import_tasks: FreeBSD.yml 
+  tags:
+    - pm
+  when: primary is defined and instance is defined
+
+- import_tasks: Aurora.yml
+  tags:
+    - pm
+  when: endpoint is defined
