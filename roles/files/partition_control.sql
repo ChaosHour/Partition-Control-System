@@ -14,7 +14,27 @@
             -- their work on the original Partition Manager.
             --
             -- ------------------------------------------------------
+            -- Copyright (c) 2023 David E. Minor
             --
+            -- Permission is hereby granted, free of charge, to any person obtaining a copy
+            -- of this software and associated documentation files (the "Software"), to deal
+            -- in the Software without restriction, including without limitation the rights
+            -- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+            -- copies of the Software, and to permit persons to whom the Software is
+            -- furnished to do so, subject to the following conditions:
+            --
+            -- The above copyright notice and this permission notice shall be included in all
+            -- copies or substantial portions of the Software.
+            --
+            -- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+            -- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+            -- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+            -- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+            -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+            -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+            -- SOFTWARE.
+            --
+            -- ------------------------------------------------------
             -- Initial Load of Partition Control System
             --
             -- Creates pcs_db database, creates event and loads stored procs
@@ -33,34 +53,34 @@
             --
             -- pcs_event
             --
-            -- Calls run_pcs, once a day, at shard off peak.
+            -- Calls run_pcs, once a day, at server off peak.
             -- It creates new partitions and deletes old ones, if so configured.
             --
             -- ------------------------------------------------------
 
             DROP EVENT IF EXISTS pcs_event;;
             CREATE EVENT `pcs_event` ON SCHEDULE EVERY 1 DAY STARTS TIMESTAMP(CONCAT(CURDATE() + INTERVAL 1 DAY, " 00:00:00")) ON COMPLETION PRESERVE ENABLE COMMENT 'Partition Control System' 
-		DO 
-			BEGIN 
-				DECLARE IsReplica INT DEFAULT 0; 
+            DO 
+               BEGIN 
+                  DECLARE IsReplica INT DEFAULT 0; 
 
-                                INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
-                                     ('Info', 'Event', NOW(), 'Starting Event');
+                  INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
+                    ('Info', 'Event', NOW(), 'Starting Event');
 
-				SELECT COUNT(1) INTO IsReplica FROM information_schema.global_status WHERE variable_name = 'Slave_running' AND variable_value = 'ON'; 
+                  SELECT COUNT(1) INTO IsReplica FROM information_schema.global_status WHERE variable_name = 'Slave_running' AND variable_value = 'ON'; 
 
-				IF (IsReplica = 0) THEN 
-                                        INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
-                                              ('Info', 'Event', NOW(), 'Instance reporting as a writer.  Starting Partition Manager');
-					CALL run_pcs; 
-                                ELSE
-                                        INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
-                                              ('Info', 'Event', NOW(), 'Instance reporting as a replica.  Skipping Partition Manager');
-				END IF; 
+                  IF (IsReplica = 0) THEN 
+                    INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
+                        ('Info', 'Event', NOW(), 'Instance reporting as a writer.  Starting Partition Control System');
+                    CALL run_pcs; 
+                  ELSE
+                    INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
+                        ('Info', 'Event', NOW(), 'Instance reporting as a replica.  Skipping Partition Control System');
+                  END IF; 
 
-                                INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
-                                     ('Info', 'Event', NOW(), 'Finished Event');
-			END ;;
+                  INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
+                      ('Info', 'Event', NOW(), 'Finished Event');
+            END ;;
 
             -- ------------------------------------------------------
             --
@@ -163,7 +183,7 @@
 
             DROP PROCEDURE IF EXISTS pcs_update_index;;
             CREATE PROCEDURE `pcs_update_index`(in P_partition_schema varchar(64), in P_table_name varchar(64), in P_partition_column varchar(64))
-            MAIN_PMCX_PROC: BEGIN
+            MAIN_PCSX_PROC: BEGIN
 
             DECLARE IndexCount int default 0;
             DECLARE alter_sql varchar(512);
@@ -183,7 +203,7 @@
             DECLARE CONTINUE HANDLER for 1068  set l_DDL_ERROR=1068;  # Multiple primary keys defined
             DECLARE CONTINUE HANDLER for 1069  set l_DDL_ERROR=1068;  # Too many keys specified
             DECLARE CONTINUE HANDLER for 1070  set l_DDL_ERROR=1070;  # Too many key parts specified
-            DECLARE CONTINUE HANDLER for 1071  set l_DDL_ERROR=1071;  # Specfied key was too long
+            DECLARE CONTINUE HANDLER for 1071  set l_DDL_ERROR=1071;  # Specified key was too long
             DECLARE CONTINUE HANDLER for 1072  set l_DDL_ERROR=1072;  # Key column doesn't exist in table
             DECLARE CONTINUE HANDLER for 1073  set l_DDL_ERROR=1073;  # BLOB column can't be used in key specification with the use table type
 
@@ -246,9 +266,9 @@
 
                         CASE  l_DDL_ERROR
                               WHEN 1146 THEN
-                                    set l_message=concat(l_message,' table does not exist  ');
+                                    set l_message=concat(l_message,' Table does not exist  ');
                               WHEN 1061 THEN
-                                    set l_message=concat(l_message,' duplicate key name  ');
+                                    set l_message=concat(l_message,' Duplicate key name  ');
                               WHEN 1068 THEN
                                     set l_message=concat(l_message,' Multiple primary keys defined  ');
                               WHEN 1069 THEN
@@ -256,7 +276,7 @@
                               WHEN 1070 THEN
                                     set l_message=concat(l_message,' Too many key parts specified  ');
                               WHEN 1071 THEN
-                                    set l_message=concat(l_message,' Specfied key was too long  ');
+                                    set l_message=concat(l_message,' Specified key was too long  ');
                               WHEN 1072 THEN
                                     set l_message=concat(l_message,' Key column does not exist in table  ');
                               WHEN 1073 THEN
@@ -275,15 +295,15 @@
 
             END IF;
 
-            END MAIN_PMCX_PROC ;;
+            END MAIN_PCSX_PROC ;;
 
             -- ------------------------------------------------------
             --
             -- pcs_config_insert
             --
             -- Provides controlled access to insert rows in the
-            -- pcs_config table.  This can be called
-            -- by liquibase or Ansible without needed elevated access to pcs_db.
+            -- pcs_config table.  This can be called by an automation tool
+            -- without needed elevated access to pcs_db.
             --
             --  This procedure has been written purely to
             --  1) Facilitate the automated population of the pcs_config table
@@ -294,7 +314,7 @@
 
             DROP PROCEDURE IF EXISTS pcs_config_insert;;
             CREATE PROCEDURE `pcs_config_insert`(in P_partition_schema varchar(64), in P_table_name varchar(64), in p_partition_column varchar(64), in p_keep_days int(10) unsigned)
-            MAIN_PMCI_PROC: BEGIN
+            MAIN_PCSCI_PROC: BEGIN
 
             DECLARE l_user varchar(60);
             DECLARE l_ip   varchar(30);
@@ -337,7 +357,7 @@
 
                   insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
                         values (p_partition_schema, p_table_name,'Control_Table_Change','Error', l_message);
-                  leave MAIN_PMCI_PROC;
+                  leave MAIN_PCSCI_PROC;
             END IF;
 
             IF  l_partition_datatype not in ('timestamp','datetime') THEN
@@ -345,7 +365,7 @@
 
                   insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
                         values (p_partition_schema, p_table_name,'Control_Table_Change','Error', l_message);
-                  leave MAIN_PMCI_PROC;
+                  leave MAIN_PCSCI_PROC;
             END IF;
 
             -- Check to see if the row is already there.  If so, just update the keep_days value
@@ -368,7 +388,7 @@
             insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
                   values (p_partition_schema, p_table_name,'Control_Table_Change','Info', 'END - completed');
 
-            END MAIN_PMCI_PROC ;;
+            END MAIN_PCSCI_PROC ;;
 
 
             -- ------------------------------------------------------
@@ -381,7 +401,7 @@
 
             DROP PROCEDURE IF EXISTS pcs_create;;
             CREATE PROCEDURE `pcs_create`(in p_partition_schema varchar(64),in p_table_name varchar(64), p_partition_datatype varchar(64), p_hour_boundary enum('00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24'))
-            MAIN_PMC_PROC: BEGIN
+            MAIN_PCSC_PROC: BEGIN
 
             DECLARE mr_part_name varchar(20);
             DECLARE mr_part_desc bigint;
@@ -395,7 +415,7 @@
             DECLARE CONTINUE HANDLER for 1493 set l_DDL_ERROR=1493;  # Values less than must be strictly increasing for each partition
             DECLARE CONTINUE HANDLER for 1503 set l_DDL_ERROR=1503;  # A PRIMARY KEY must include all columns in the table's partitioning function
             DECLARE CONTINUE HANDLER for 1054 set l_DDL_ERROR=1054;  # Unknown column in partition function
-            DECLARE CONTINUE HANDLER for 1505 set l_DDL_ERROR=1505;  # Partition managment on non partitioned table.
+            DECLARE CONTINUE HANDLER for 1505 set l_DDL_ERROR=1505;  # Partition management attempted on non partitioned table.
             DECLARE CONTINUE HANDLER for 1506 set l_DDL_ERROR=1506;  # Foreign keys not supported with partitioning
             DECLARE CONTINUE HANDLER for 1507 set l_DDL_ERROR=1507;  # Error in list of partitions
             DECLARE CONTINUE HANDLER for 1508 set l_DDL_ERROR=1508;  # Cannot remove all partitions, use DROP TABLE instead
@@ -404,10 +424,10 @@
 
             set l_message='';
 
-            IF @CALLING_PMS_PROC !='Main' OR @CALLING_PMS_PROC is null THEN
+            IF @CALLING_PSC_PROC !='RUN' OR @CALLING_PSC_PROC is null THEN
                   insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
-                        values (p_partition_schema, p_table_name,'Create','Error', 'Attempt to call this proc not from Main proc');
-                  leave MAIN_PMC_PROC;
+                        values (p_partition_schema, p_table_name,'Create','Error', 'This procedure cannot be called directly');
+                  leave MAIN_PCSC_PROC;
             ELSE
                   insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
                         values (p_partition_schema,p_table_name,'Create','Info', 'Starting Create');
@@ -445,7 +465,7 @@
                                     WHEN 1504 THEN
                                           set l_message=concat(l_message,'  Unknown column in partition function');
                                     WHEN 1505 THEN
-                                          set l_message=concat(l_message,'  Partition managment on non partitioned table');
+                                          set l_message=concat(l_message,'  Partition management attempted on non partitioned table');
                                     WHEN 1506 THEN
                                           set l_message=concat(l_message,'  Foreign keys not supported with partitioning');
                                     WHEN 1507 THEN
@@ -495,7 +515,7 @@
                                     WHEN 1504 THEN
                                           set l_message=concat(l_message,'  Unknown column in partition function');
                                     WHEN 1505 THEN
-                                          set l_message=concat(l_message,'  Partition managment on non partitioned table');
+                                          set l_message=concat(l_message,'  Partition management attempted on non partitioned table');
                                     WHEN 1506 THEN
                                           set l_message=concat(l_message,'  Foreign keys not supported with partitioning');
                                     WHEN 1507 THEN
@@ -519,7 +539,7 @@
                   END WHILE;
             END IF;
 
-            END MAIN_PMC_PROC ;;
+            END MAIN_PCSC_PROC ;;
 
 
             -- ------------------------------------------------------
@@ -532,7 +552,7 @@
 
             DROP PROCEDURE IF EXISTS pcs_drop;;            
             CREATE PROCEDURE `config_drop`(in P_partition_schema varchar(64),in P_table_name varchar(64), in p_keep_days int)
-            MAIN_PMD_PROC: BEGIN
+            MAIN_PCSD_PROC: BEGIN
             DECLARE l_keep_days int;
             DECLARE l_max_partition_ordinal_posn int;
             DECLARE l_part_name varchar(64);
@@ -540,10 +560,10 @@
             DECLARE drop_sql  varchar(512);
             DECLARE do_sql    varchar(512);
 
-            IF @CALLING_PMS_PROC !='Main' or @CALLING_PMS_PROC is null THEN
+            IF @CALLING_PSC_PROC !='RUN' or @CALLING_PSC_PROC is null THEN
                   insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
-                        values (p_partition_schema,p_table_name,'Drop','Error', 'Attempt to call this proc not from Main proc');
-                  leave MAIN_PMD_PROC;
+                        values (p_partition_schema,p_table_name,'Drop','Error', 'This procedure cannot be called directly');
+                  leave MAIN_PCSD_PROC;
             END IF;
 
             set l_keep_days=p_keep_days;
@@ -603,7 +623,7 @@
 
             END WHILE;
 
-            END MAIN_PMD_PROC ;;
+            END MAIN_PCSD_PROC ;;
 
 
             -- ------------------------------------------------------
@@ -617,7 +637,7 @@
 
             DROP PROCEDURE IF EXISTS pcs_init;;
             CREATE PROCEDURE `pcs_init`(in P_partition_schema varchar(64), in P_table_name varchar(64), in p_partition_column varchar(64), in p_partition_datatype varchar(64),p_hour_boundary enum('00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24'))
-            MAIN_PMI_PROC: BEGIN
+            MAIN_PCSI_PROC: BEGIN
 
             DECLARE RecordCount         int default 0;
             DECLARE cur_day             int default 0;
@@ -634,17 +654,17 @@
             DECLARE CONTINUE HANDLER for 1493 set l_DDL_ERROR=1493;  # Values less than must be strictly increasing for each partition
             DECLARE CONTINUE HANDLER for 1503 set l_DDL_ERROR=1503;  # A PRIMARY KEY must include all columns in the table's partitioning function
             DECLARE CONTINUE HANDLER for 1054 set l_DDL_ERROR=1054;  # Unknown column in partition function
-            DECLARE CONTINUE HANDLER for 1505 set l_DDL_ERROR=1505;  # Partition managment on non partitioned table.
+            DECLARE CONTINUE HANDLER for 1505 set l_DDL_ERROR=1505;  # Partition managment attempted on non partitioned table.
             DECLARE CONTINUE HANDLER for 1506 set l_DDL_ERROR=1506;  # Foreign keys not supported with partitioning
             DECLARE CONTINUE HANDLER for 1507 set l_DDL_ERROR=1507;  # Error in list of partitions
             DECLARE CONTINUE HANDLER for 1508 set l_DDL_ERROR=1508;  # Cannot remove all partitions, use DROP TABLE instead
             DECLARE CONTINUE HANDLER for 1517 set l_DDL_ERROR=1517;  # Same name partition
             DECLARE CONTINUE HANDLER for 1659 set l_DDL_ERROR=1659;  # Field not allowed type for this type of partitioning
 
-            IF @CALLING_PMS_PROC !='Main' or @CALLING_PMS_PROC is null THEN
+            IF @CALLING_PCS_PROC !='RUN' or @CALLING_PCS_PROC is null THEN
                   insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
-                        values (p_partition_schema, p_table_name,'Init','Error', 'Attempt to call this proc not from Main proc');
-                  leave MAIN_PMI_PROC;
+                        values (p_partition_schema, p_table_name,'Init','Error', 'This procedure cannot be called directly');
+                  leave MAIN_PCSI_PROC;
             END IF;
 
             set Recordcount=0;
@@ -659,7 +679,7 @@
                   set l_message=concat('Table already partitioned');
                   insert into  pcs_log (part_schema,part_table,logging_proc,message_type, message)
                         values (p_partition_schema,p_table_name,'Init','Error',l_message);
-                  leave MAIN_PMI_PROC;
+                  leave MAIN_PCSI_PROC;
             END IF;
 
             --
@@ -675,7 +695,7 @@
             prepare l_do_sql from @cur_day_cmd;
             execute l_do_sql; deallocate prepare l_do_sql;
 
-            IF  p_partition_datatype='timestamp' THEN
+            IF p_partition_datatype='timestamp' THEN
                   set @l_partition_cmd=concat(' alter table ',p_partition_schema,'.',p_table_name,'  PARTITION BY RANGE (UNIX_TIMESTAMP(`',p_partition_column,'`)) (');
              
                   WHILE @cur_day > -2 DO 
@@ -724,11 +744,11 @@
                         WHEN 1504 THEN
                               set l_message=concat(l_message,'  Unknown column in partition function');
                         WHEN 1505 THEN
-                              set l_message=concat(l_message,'  Partition managment on non partitioned table');
+                              set l_message=concat(l_message,'  Partition management attempted on non partitioned table');
                         WHEN 1506 THEN
                               set l_message=concat(l_message,'  Foreign keys not supported with partitioning');
                         WHEN 1507 THEN
-                              set l_message=concat(l_message,'  error in list of partitions');
+                              set l_message=concat(l_message,'  Error in list of partitions');
                         WHEN 1508 THEN
                               set l_message=concat(l_message,'  Cannot remove all partitions, use DROP TABLE');
                         WHEN 1517 THEN
@@ -740,7 +760,7 @@
                   insert into  pcs_log (part_schema,part_table,logging_proc,message_type, message)
                         values (p_partition_schema, p_table_name,'Init','Error',l_message);
 
-                  leave MAIN_PMI_PROC;
+                  leave MAIN_PCSI_PROC;
             END IF;
 
             update pcs_config set table_state='Active' where part_table=p_table_name and part_schema=p_partition_schema;
@@ -754,14 +774,14 @@
             insert into  pcs_log (part_schema,part_table,part_partition,logging_proc,message_type, message)
                   values (p_partition_schema, p_table_name,l_partition_name, 'Init','Info',l_message);
 
-            END MAIN_PMI_PROC ;;
+            END MAIN_PCSI_PROC ;;
 
 
             -- ------------------------------------------------------
             --
             -- run_pcs
             --
-            -- The main procedure called from the event or manually
+            -- The main 'run' procedure called from the event or manually
             -- It adds/removes partitions based on the contents of
             -- pcs_config table.
             --
@@ -769,7 +789,7 @@
 
             DROP PROCEDURE IF EXISTS run_pcs;;
             CREATE PROCEDURE `run_pcs`()
-            MAIN_PMM_PROC: BEGIN
+            MAIN_PCSRUN_PROC: BEGIN
             DECLARE GoodToProcess   int default 0;
             DECLARE finished        boolean default false;
             DECLARE RecordCount     int   default 0;
@@ -791,10 +811,10 @@
 
             DECLARE continue handler for not found set finished = true;
 
-            SET @CALLING_PMS_PROC = 'Main';
+            SET @CALLING_PCS_PROC = 'RUN';
 
             insert into  pcs_log (message_type,logging_proc, message)
-                  values ('Info','Main','STARTING MAIN PROC V3.0.0');
+                  values ('Info','RUN','Starting PCS Run V3.0.0');
 
             set finished=false;
             OPEN cur_partition_control;
@@ -809,7 +829,7 @@
                   END IF;
 
                   insert into  pcs_log (part_schema,part_table,message_type,logging_proc, message)
-                        values (l_partition_schema, l_table_name,'Info','Main','Processsing this table');
+                        values (l_partition_schema, l_table_name,'Info','RUN','Processing table');
 
                   set RecordCount=0; set GoodToProcess=1;
 
@@ -819,7 +839,7 @@
                   IF (RecordCount = 0) THEN
                         set l_message=concat('Table ' ,l_table_name, ' with column ' , l_partition_column,' does not exist');
                         insert into  pcs_log (part_schema,part_table,message_type, logging_proc,message)
-                              values (l_partition_schema,l_table_name,'Error','Main',l_message);
+                              values (l_partition_schema,l_table_name,'Error','RUN',l_message);
                         set GoodToProcess=0; ITERATE CURSOR_LOOP;
                   END IF;
 
@@ -829,7 +849,7 @@
                   IF l_partition_datatype not in ('timestamp','datetime') THEN
                         set l_message=concat('Partitioning not allowed on ' , l_partition_datatype,' datatype ');
                         insert into  pcs_log (part_schema,part_table,message_type,logging_proc, message)
-                              values (l_partition_schema,l_table_name,'Error','Main',l_message);
+                              values (l_partition_schema,l_table_name,'Error','RUN',l_message);
                         set GoodToProcess=0; ITERATE CURSOR_LOOP;
                   END IF;
 
@@ -845,7 +865,7 @@
 
                   If ForeignKeyCount > 0 THEN
                         insert into  pcs_log (part_schema,part_table,message_type,logging_proc, message)
-                              values (l_partition_schema,l_table_name,'Error','Main','Foreign key not allowed for partitioning');
+                              values (l_partition_schema,l_table_name,'Error','RUN','Foreign key not allowed for partitioning');
                         set GoodToProcess=0; ITERATE CURSOR_LOOP;
                   END IF;
 
@@ -864,10 +884,10 @@
 
             END LOOP CURSOR_LOOP;
 
-            insert into  pcs_log (message_type,logging_proc, message) values ('Info','Main','FINISHED MAIN PROC V3.0.0');
-            SET @CALLING_PMS_PROC='None';
+            insert into  pcs_log (message_type,logging_proc, message) values ('Info','RUN','Finished PCS Run V3.0.0');
+            SET @CALLING_PCS_PROC='None';
 
-            END MAIN_PMM_PROC ;;
+            END MAIN_PCSRUN_PROC ;;
 
 
             -- ------------------------------------------------------
@@ -881,7 +901,7 @@
 
             DROP PROCEDURE IF EXISTS pcs_check;;
             CREATE PROCEDURE `pcs_check`()
-            MAIN_PMOC_PROC: BEGIN
+            MAIN_PSCC_PROC: BEGIN
 
             DECLARE mr_part_name varchar(20);
             DECLARE mr_part_desc bigint;
@@ -960,7 +980,7 @@
                   END WHILE;
 
             CLOSE cur_id;
-            END MAIN_PMOC_PROC ;;
+            END MAIN_PSCC_PROC ;;
 
 
             -- ------------------------------------------------------
@@ -976,7 +996,7 @@
 
             DROP PROCEDURE IF EXISTS pcs_tables;;
             CREATE PROCEDURE `pcs_tables`()
-            MAIN_PMT_PROC: BEGIN
+            MAIN_PSCT_PROC: BEGIN
             
             prepare create_table from   
             "CREATE TABLE IF NOT EXISTS pcs_log (
@@ -1018,6 +1038,6 @@
             insert into pcs_log (message_type, logging_proc, message)
                   values ('Info', 'Tables', 'FINISHED TABLES PROC');
 
-            END MAIN_PMT_PROC ;;
+            END MAIN_PSCT_PROC ;;
 
             DELIMITER ;
