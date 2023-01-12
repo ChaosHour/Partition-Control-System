@@ -63,11 +63,18 @@
             DO 
                BEGIN 
                   DECLARE IsReplica INT DEFAULT 0; 
+		  DECLARE MySQL_8 INT DEFAULT 0;
 
                   INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
                     ('Info', 'Event', NOW(), 'Starting Event');
 
-                  SELECT COUNT(1) INTO IsReplica FROM information_schema.global_status WHERE variable_name = 'Slave_running' AND variable_value = 'ON'; 
+		  SELECT cast(substring(version(), 1,1) AS UNSIGNED) INTO MySQL_8;
+
+		  IF (MySQL_8 = 8) THEN
+		    SELECT COUNT(1) INTO IsReplica FROM performance_schema.global_status WHERE variable_name = 'Slave_running' AND variable_value = 'ON';	
+		  ELSE
+                    SELECT COUNT(1) INTO IsReplica FROM information_schema.global_status WHERE variable_name = 'Slave_running' AND variable_value = 'ON'; 
+                  END IF;
 
                   IF (IsReplica = 0) THEN 
                     INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
@@ -551,7 +558,7 @@
             -- ------------------------------------------------------
 
             DROP PROCEDURE IF EXISTS pcs_drop;;            
-            CREATE PROCEDURE `config_drop`(in P_partition_schema varchar(64),in P_table_name varchar(64), in p_keep_days int)
+            CREATE PROCEDURE `pcs_drop`(in P_partition_schema varchar(64),in P_table_name varchar(64), in p_keep_days int)
             MAIN_PCSD_PROC: BEGIN
             DECLARE l_keep_days int;
             DECLARE l_max_partition_ordinal_posn int;
@@ -571,7 +578,7 @@
             IF l_keep_days=0 THEN
                   insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
                   values (p_partition_schema,p_table_name,'Drop','Info', 'Ignoring partition drop as keep days set to 0');
-                  leave MAIN_PMD_PROC;
+                  leave MAIN_PCSD_PROC;
             ELSE
                   set l_message=concat('Starting partition drop with keep_days=',l_keep_days);
                   insert into pcs_log (part_schema,part_table,logging_proc,message_type,message)
