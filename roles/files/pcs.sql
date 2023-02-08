@@ -40,8 +40,8 @@
             -- ------------------------------------------------------
             -- Initial Load of Partition Control System
             --
-            -- Creates pcs_db database, creates event and loads stored procs
-            -- Note:  PCS is stored and executed from the pcs_db
+            -- Creates pcs database, creates event and loads stored procs
+            -- Note:  PCS is stored and executed from the pcs
             -- database so that any database can use it's functionality without
             -- duplicating procedures and configuration.
             -- 
@@ -49,8 +49,8 @@
             
             DELIMITER ;;
 
-            CREATE DATABASE IF NOT EXISTS pcs_db;;
-            USE pcs_db;;
+            CREATE DATABASE IF NOT EXISTS pcs;;
+            USE pcs;;
 
             -- ------------------------------------------------------
             --
@@ -94,7 +94,7 @@
 
             -- ------------------------------------------------------
             --
-            -- Create pcs_db tables, if needed.
+            -- Create pcs tables, if needed.
             --
             -- NOTE:  This is duplicated in a later routine, 
             -- but needed here so triggers can be created.
@@ -313,12 +313,11 @@
             --
             -- Provides controlled access to insert rows in the
             -- pcs_config table.  This can be called by an automation tool
-            -- without needed elevated access to pcs_db.
+            -- without needing elevated access to pcs.
             --
             --  This procedure has been written purely to
             --  1) Facilitate the automated population of the pcs_config table
             --  2) Prevent unlogged access to the a pcs_config table by non root users
-            --  3) Limit the access to the table to localhost access for non root access.
             --
             -- ------------------------------------------------------
 
@@ -334,8 +333,6 @@
             DECLARE l_boundary_hour  enum('00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24');
             DECLARE l_table_state varchar(16) DEFAULT NULL;
 
-            --  Check that the current user has an IP of localhost in the IP portion of its account.
-            --
             --  1) Check that the p_partition_schema, p_table_name actually exists on this database - Error and logging message if it fails
             --  2) Check the datatype of the column to be partitioned is one of our allowed - Error and logging message if fails
 
