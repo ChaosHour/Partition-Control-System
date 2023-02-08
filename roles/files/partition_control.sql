@@ -7,6 +7,9 @@
             -- This is the initial, development release of the 
             -- Partition Control System, based on the Partition Manager,
             -- originally created in December 2010.
+            -- 
+            -- Note: This version ONLY works with MySQL 5.7.X and highter
+            --
             -- ------------------------------------------------------
             --
             -- Thanks:
@@ -63,18 +66,18 @@
             DO 
                BEGIN 
                   DECLARE IsReplica INT DEFAULT 0; 
-		  DECLARE MySQL_8 INT DEFAULT 0;
+--		  DECLARE MySQL_8 INT DEFAULT 0;
 
                   INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
                     ('Info', 'Event', NOW(), 'Starting Event');
 
-		  SELECT cast(substring(version(), 1,1) AS UNSIGNED) INTO MySQL_8;
+--		  SELECT cast(substring(version(), 1,1) AS UNSIGNED) INTO MySQL_8;
 
-		  IF (MySQL_8 = 8) THEN
+--		  IF (MySQL_8 = 8) THEN
 		    SELECT COUNT(1) INTO IsReplica FROM performance_schema.global_status WHERE variable_name = 'Slave_running' AND variable_value = 'ON';	
-		  ELSE
-                    SELECT COUNT(1) INTO IsReplica FROM information_schema.global_status WHERE variable_name = 'Slave_running' AND variable_value = 'ON'; 
-                  END IF;
+--		  ELSE
+ --                   SELECT COUNT(1) INTO IsReplica FROM information_schema.global_status WHERE variable_name = 'Slave_running' AND variable_value = 'ON'; 
+  --                END IF;
 
                   IF (IsReplica = 0) THEN 
                     INSERT INTO pcs_log (message_type, logging_proc, action_timestamp, message) values
