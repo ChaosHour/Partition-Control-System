@@ -21,5 +21,14 @@ fmt:
 linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY)-linux-amd64 ./cmd/pcs
 
+# End-to-end suite against the MySQL 5.7/8.0/8.4/9 matrix.
+integration: build
+	docker compose -f test/docker-compose.yml up -d
+	bash test/integration.sh
+	docker compose -f test/docker-compose.yml down -v
+
+integration-down:
+	docker compose -f test/docker-compose.yml down -v
+
 clean:
 	rm -rf bin
