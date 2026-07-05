@@ -168,10 +168,12 @@ Work one item at a time; check off as completed.
       (`SHOW REPLICA STATUS` vs `SHOW SLAVE STATUS`), identifier quoting
       helper (fixes F8). Verified live against 5.7.44 / 8.0.45 / 8.4.10 /
       9.7.1 in Docker, incl. read_only replica detection. Added `pcs ping`.
-- [ ] **T3. Schema bootstrap** (`pcs install`, part 1) — create `pcs` DB,
+- [x] **T3. Schema bootstrap** (`pcs install`, part 1) — create `pcs` DB,
       `pcs_config`, `pcs_log` with utf8mb4, no display widths, consistent
       definitions (fixes F2/F6/F9/F10; triggers replaced by app-level audit
-      logging).
+      logging). Refuses replicas; warns on legacy event/table layout;
+      verified on 5.7/8.0/8.4/9 incl. coexistence with a live legacy
+      install and `-schema pcs4` separation.
 - [ ] **T4. Discovery** (`pcs install`, part 2) — port `pcs_tables`: seed
       `pcs_config` from existing RANGE-partitioned tables via
       `information_schema.partitions`.
