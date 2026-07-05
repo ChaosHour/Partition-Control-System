@@ -143,3 +143,38 @@ func (s *Store) Error(ctx context.Context, proc, schema, table, partition, messa
 func nullable(v string) sql.NullString {
 	return sql.NullString{String: v, Valid: v != ""}
 }
+
+// LogEntry is one pcs_log row, formatted for display.
+type LogEntry struct {
+	Timestamp string
+	Type      string
+	Proc      string
+	Target    string // schema.table[.partition], empty parts omitted
+	Message   string
+}
+
+// RecentLog returns the newest n audit entries, oldest first.
+func (s *Store) RecentLog(ctx context.Context, n int) ([]LogEntry, error) {
+	rows, err := s.DB.QueryContext(ctx, fmt.Sprintf(`
+		SELECT action_timestamp, message_type, logging_proc,
+		       CONCAT_WS('.', part_schema, part_table, part_partition), message
+		FROM (SELECT * FROM %s ORDER BY id DESC LIMIT ?) newest
+		ORDER BY id`,
+		db.QuoteQualified(s.Schema, "pcs_log")), n)
+	if err != nil {
+		return nil, fmt.Errorf("reading pcs_log: %w", err)
+	}
+	defer rows.Close()
+
+	var out []LogEntry
+	for rows.Next() {
+		var e LogEntry
+		var target sql.NullString
+		if err := rows.Scan(&e.Timestamp, &e.Type, &e.Proc, &target, &e.Message); err != nil {
+			return nil, err
+		}
+		e.Target = target.String
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
