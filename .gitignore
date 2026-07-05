@@ -1,0 +1,11 @@
+# Build output
+bin/
+dist/
+
+# Test artifacts
+*.test
+coverage.out
+
+# Editor/OS noise
+.DS_Store
+*.swp
