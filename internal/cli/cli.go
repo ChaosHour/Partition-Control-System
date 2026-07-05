@@ -72,10 +72,3 @@ func cmdVersion(_ []string) int {
 	fmt.Printf("pcs version %s\n", version)
 	return 0
 }
-
-// notImplemented is the placeholder body for subcommands whose port from
-// the stored procedures has not landed yet (see CONVERSION_PLAN.md).
-func notImplemented(name, task string) int {
-	fmt.Fprintf(os.Stderr, "pcs %s: not implemented yet (CONVERSION_PLAN.md %s)\n", name, task)
-	return 1
-}

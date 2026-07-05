@@ -27,6 +27,10 @@ type ConnFlags struct {
 	Password string
 	TLS      string
 	Timeout  time.Duration
+
+	// GCP Cloud SQL connector (alternative to host/port + Auth Proxy).
+	CloudSQLInstance string
+	IAMAuth          bool
 }
 
 // Register defines the shared connection flags on fs.
@@ -41,6 +45,10 @@ func (c *ConnFlags) Register(fs *flag.FlagSet) {
 		"MySQL password; prefer env PCS_PASSWORD over this flag")
 	fs.StringVar(&c.TLS, "tls", "", `TLS mode: "true", "preferred" or "skip-verify" (required for most RDS/Cloud SQL public endpoints)`)
 	fs.DurationVar(&c.Timeout, "timeout", 10*time.Second, "connect timeout")
+	fs.StringVar(&c.CloudSQLInstance, "cloudsql-instance", os.Getenv("PCS_CLOUDSQL_INSTANCE"),
+		"GCP Cloud SQL instance connection name project:region:instance; dials via the Cloud SQL connector using Application Default Credentials (env PCS_CLOUDSQL_INSTANCE)")
+	fs.BoolVar(&c.IAMAuth, "iam-auth", false,
+		"use IAM database authentication with -cloudsql-instance (no DB password)")
 }
 
 func envOr(key, def string) string {
@@ -62,6 +70,14 @@ func (c *ConnFlags) Connect(ctx context.Context) (*DB, error) {
 	cfg, err := c.mysqlConfig()
 	if err != nil {
 		return nil, err
+	}
+	if c.CloudSQLInstance != "" {
+		if err := registerCloudSQL(ctx, c.CloudSQLInstance, c.IAMAuth); err != nil {
+			return nil, err
+		}
+		applyCloudSQL(cfg, c.CloudSQLInstance, c.IAMAuth)
+	} else if c.IAMAuth {
+		return nil, fmt.Errorf("-iam-auth requires -cloudsql-instance")
 	}
 	connector, err := mysql.NewConnector(cfg)
 	if err != nil {
