@@ -178,34 +178,39 @@ Work one item at a time; check off as completed.
       `pcs_config` from existing RANGE-partitioned tables via
       `information_schema.partitions`. Opt-in via `install -discover`;
       skips non-TO_DAYS/UNIX_TIMESTAMP schemes; verified on 5.7 and 9.
-- [ ] **T5. `pcs add`** — port `pcs_config_insert`: validate table/column
+- [x] **T5. `pcs add`** — port `pcs_config_insert`: validate table/column
       exists, datatype is timestamp/datetime, **engine is InnoDB** (8.0+
       supports native InnoDB partitioning only; the old procs never checked
       engine), keep_days range (F7), insert or update config + log.
-- [ ] **T6. Partition math package** — pure functions: partition name/boundary
+- [x] **T6. Partition math package** — pure functions: partition name/boundary
       generation for TO_DAYS and UNIX_TIMESTAMP schemes, boundary hour,
-      30-day horizon, drop candidates. Unit tests here (no DB needed).
-- [ ] **T7. Init** — port `pcs_init` + `pcs_update_index`: PK check/rebuild,
-      initial `PARTITION BY RANGE` ALTER from earliest data date.
-- [ ] **T8. Create** — port `pcs_create`: extend partitions 30 days out for
+      30-day horizon. Boundaries emitted as SQL expressions so the server
+      owns timezone conversion. Unit tests (no DB needed).
+- [x] **T7. Init** — port `pcs_init` + `pcs_update_index`: PK check/rebuild,
+      initial `PARTITION BY RANGE` ALTER from earliest data date; adopts
+      already-partitioned tables with matching scheme.
+- [x] **T8. Create** — port `pcs_create`: extend partitions 30 days out for
       both datatypes (fixes F1 — this code will actually run now).
-- [ ] **T9. Drop** — port `pcs_drop`: retention enforcement, 3-day safety
-      abort, keep_days clamp.
-- [ ] **T10. `pcs run`** — port `run_pcs` + event logic: replica no-op check
-      (fixes F3), per-table validation (exists, datatype, InnoDB, no FKs), state
-      machine Init→Active, structured logging to `pcs_log`; optional
-      `--daemon`/`--interval`.
-- [ ] **T11. `pcs check`** — port `pcs_check` with correct date rendering per
+- [x] **T9. Drop** — port `pcs_drop`: retention enforcement, boundary-based
+      3-day safety abort, keep_days clamp.
+- [x] **T10. `pcs run`** — port `run_pcs` + event logic: replica no-op check
+      (fixes F3), per-table validation (exists, datatype, InnoDB, no FKs),
+      state machine Init→Active, GET_LOCK single-run guard, `-dry-run`,
+      structured logging to `pcs_log`. (Daemon mode dropped: cron is the
+      scheduler.)
+- [x] **T11. `pcs check`** — port `pcs_check` with correct date rendering per
       datatype (fixes F4/F5); Nagios-style exit codes (0/1/2) so it replaces
       `check_db_partition_manager` / check_mk wrappers.
-- [ ] **T12. `pcs status` / `pcs list`** — show config, table states, recent
-      log entries, partition ranges per table.
-- [ ] **T13. Integration tests** — docker-compose matrix: MySQL 5.7, 8.0,
-      8.4, 9.x; end-to-end: install → add → run → check → run (drop path).
-- [ ] **T14. Cloud SQL connector** — optional `--cloudsql-instance` /
-      `--iam-auth` flags wiring `cloud.google.com/go/cloudsqlconn` into the
-      DB layer from T2; document the Auth Proxy / private-IP alternative.
-- [ ] **T15. Docs** — rewrite README to describe both editions (original
+- [x] **T12. `pcs status`** — config, table states, partition footprint,
+      recent log entries.
+- [x] **T13. Integration tests** — docker-compose matrix: MySQL 5.7, 8.0,
+      8.4, 9.x; end-to-end: install → add (incl. rejections) → run →
+      retention/brake → check degrade/repair → replica no-op
+      (`make integration`).
+- [x] **T14. Cloud SQL connector** — `-cloudsql-instance` / `-iam-auth`
+      flags wiring `cloud.google.com/go/cloudsqlconn` into the DB layer;
+      Auth Proxy / private-IP TCP path unchanged.
+- [x] **T15. Docs** — rewrite README to describe both editions (original
       SQL/stored-proc edition and Go edition), cron/systemd examples
       (including Cloud Run jobs / Cloud Scheduler and EventBridge patterns
       for managed hosts), and a "don't run both editions against the same
