@@ -18,6 +18,7 @@ func cmdInstall(args []string) int {
 	var conn db.ConnFlags
 	conn.Register(fs)
 	schema := fs.String("schema", pcs.DefaultSchema, "database to hold PCS metadata")
+	discover := fs.Bool("discover", false, "register already-partitioned tables in pcs_config (state Active, keep_days 0 = never drop)")
 	fs.Parse(args)
 
 	ctx := context.Background()
@@ -63,5 +64,48 @@ func cmdInstall(args []string) int {
 	}
 
 	fmt.Printf("pcs metadata schema ready in %s (server %s)\n", *schema, d.Version.Raw)
+
+	found, err := store.DiscoverPartitionedTables(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "pcs install: %v\n", err)
+		return 1
+	}
+	if !*discover {
+		if managed := managedCount(found); managed > 0 {
+			fmt.Printf("%d RANGE-partitioned table(s) found that pcs could manage; re-run with -discover to register them\n", managed)
+		}
+		return 0
+	}
+
+	for _, t := range found {
+		if !t.Managed {
+			fmt.Printf("skipped    %s.%s: partition expression %q is not a TO_DAYS/UNIX_TIMESTAMP scheme\n", t.Schema, t.Table, t.Expression)
+			continue
+		}
+		inserted, err := store.RegisterTable(ctx, t.Schema, t.Table, t.Column, "Active", 0, 0,
+			"discovered by pcs install -discover")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "pcs install: %v\n", err)
+			return 1
+		}
+		if inserted {
+			fmt.Printf("registered %s.%s (%s on %s, keep_days 0 = never drop)\n", t.Schema, t.Table, t.Scheme, t.Column)
+			if err := store.Info(ctx, "Discover", t.Schema, t.Table, "", "registered as Active by install -discover"); err != nil {
+				fmt.Fprintf(os.Stderr, "WARNING: audit log entry failed: %v\n", err)
+			}
+		} else {
+			fmt.Printf("exists     %s.%s (already in pcs_config)\n", t.Schema, t.Table)
+		}
+	}
 	return 0
+}
+
+func managedCount(found []pcs.DiscoveredTable) int {
+	n := 0
+	for _, t := range found {
+		if t.Managed {
+			n++
+		}
+	}
+	return n
 }
