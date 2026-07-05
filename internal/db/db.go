@@ -31,6 +31,13 @@ type ConnFlags struct {
 	// GCP Cloud SQL connector (alternative to host/port + Auth Proxy).
 	CloudSQLInstance string
 	IAMAuth          bool
+
+	// Credential files (see credfile.go for resolution order).
+	Credentials  string // JSON file
+	DefaultsFile string // MySQL options file; default ~/.my.cnf
+	GroupSuffix  string // also read [client<suffix>], mysql-style
+
+	fs *flag.FlagSet // remembered by Register to detect explicit flags
 }
 
 // Register defines the shared connection flags on fs.
@@ -49,6 +56,13 @@ func (c *ConnFlags) Register(fs *flag.FlagSet) {
 		"GCP Cloud SQL instance connection name project:region:instance; dials via the Cloud SQL connector using Application Default Credentials (env PCS_CLOUDSQL_INSTANCE)")
 	fs.BoolVar(&c.IAMAuth, "iam-auth", false,
 		"use IAM database authentication with -cloudsql-instance (no DB password)")
+	fs.StringVar(&c.Credentials, "credentials", os.Getenv("PCS_CREDENTIALS"),
+		"JSON credentials file: {\"host\":..,\"port\":..,\"user\":..,\"password\":..,...} (env PCS_CREDENTIALS)")
+	fs.StringVar(&c.DefaultsFile, "defaults-file", "",
+		"MySQL options file to read the [client] section from (default: ~/.my.cnf if present)")
+	fs.StringVar(&c.GroupSuffix, "defaults-group-suffix", "",
+		"also read [client<suffix>] from the options file, e.g. _primary1")
+	c.fs = fs
 }
 
 func envOr(key, def string) string {
@@ -67,6 +81,9 @@ type DB struct {
 // Connect opens the connection described by the flags, verifies it with a
 // ping and detects the server version.
 func (c *ConnFlags) Connect(ctx context.Context) (*DB, error) {
+	if err := c.resolve(); err != nil {
+		return nil, err
+	}
 	cfg, err := c.mysqlConfig()
 	if err != nil {
 		return nil, err

@@ -28,8 +28,24 @@ $ pcs install -host db1 -user root        # creates the pcs metadata schema
 $ pcs install -host db1 -discover         # optionally adopt already-partitioned tables
 ```
 
-Credentials come from flags or `PCS_HOST` / `PCS_USER` / `PCS_PASSWORD` /
-`PCS_DSN` environment variables. Add `-tls true` for RDS/Cloud SQL public
+### Connection settings
+
+Each connection field (host, port, socket, user, password, TLS, DSN,
+Cloud SQL instance) resolves independently, first match wins:
+
+1. command-line flag (`-host`, `-user`, ...)
+2. environment (`PCS_HOST`, `PCS_USER`, `PCS_PASSWORD`, `PCS_DSN`, ...)
+3. JSON credentials file: `-credentials creds.json` (or
+   `PCS_CREDENTIALS`), keys `host`, `port`, `socket`, `user`,
+   `password`, `tls`, `dsn`, `cloudsql_instance`
+4. MySQL options file `[client]` section: `~/.my.cnf` automatically when
+   present, or an explicit `-defaults-file`; `ssl-mode` is honored, and
+   `-defaults-group-suffix _primary1` also reads `[client_primary1]`,
+   like the mysql client
+5. built-in defaults (`127.0.0.1:3306`, user `root`)
+
+Sources mix freely — `pcs run -host db1` with the password coming from
+`~/.my.cnf` just works. Add `-tls true` for RDS/Cloud SQL public
 endpoints. MySQL 9 works out of the box (`caching_sha2_password`).
 
 The MySQL account needs: `ALTER`, `SELECT`, `INSERT`, `UPDATE`, `CREATE`,
