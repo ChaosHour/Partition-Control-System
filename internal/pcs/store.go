@@ -16,9 +16,12 @@ import (
 const DefaultSchema = "pcs"
 
 // Store is the PCS metadata store: pcs_config and pcs_log inside Schema.
+// With DryRun set, DDL statements and state changes are printed instead
+// of executed, and audit rows are printed instead of written.
 type Store struct {
 	DB     *db.DB
 	Schema string
+	DryRun bool
 }
 
 // Modernized table definitions (5.7 through 9.x safe): utf8mb4 instead of
@@ -113,6 +116,10 @@ func (s *Store) LegacyWarnings(ctx context.Context) ([]string, error) {
 // become NULL. Logging is best-effort at call sites; this returns the
 // error so callers can decide.
 func (s *Store) Log(ctx context.Context, msgType, proc, schema, table, partition, message string) error {
+	if s.DryRun {
+		fmt.Printf("DRY-RUN log: [%s/%s] %s.%s %s: %s\n", msgType, proc, schema, table, partition, message)
+		return nil
+	}
 	_, err := s.DB.ExecContext(ctx, fmt.Sprintf(
 		"INSERT INTO %s (part_schema, part_table, part_partition, message_type, logging_proc, message) VALUES (?, ?, ?, ?, ?, ?)",
 		db.QuoteQualified(s.Schema, "pcs_log")),
