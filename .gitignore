@@ -9,3 +9,9 @@ coverage.out
 # Editor/OS noise
 .DS_Store
 *.swp
+
+.claude/
+.claudeignore
+CLAUDE.md
+FUTURE_PLAN.md
+graphify-out/
