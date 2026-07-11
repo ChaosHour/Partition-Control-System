@@ -28,6 +28,7 @@ func commands() []command {
 		{"run", "create and drop partitions for all registered tables", cmdRun},
 		{"check", "verify partition coverage (monitoring-friendly exit codes)", cmdCheck},
 		{"status", "show registered tables, states and recent log entries", cmdStatus},
+		{"info", "report partition layout, sizes, boundaries and data ranges (any partitioned table)", cmdInfo},
 		{"ping", "test connectivity; report server version and replica state", cmdPing},
 		{"version", "print the pcs version", cmdVersion},
 	}
