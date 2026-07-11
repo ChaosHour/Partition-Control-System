@@ -114,6 +114,31 @@ retention anomalies, MAXVALUE partition), `2` critical (coverage not
 extending — the daily run is broken, act before partitions run out).
 `pcs status` shows the config, partition footprint and recent audit log.
 
+## Inspect
+
+`pcs info` reports everything about a table's partitions — layout, sizes,
+boundaries (raw and as dates), row counts, `SHOW CREATE TABLE`, and the
+MIN/MAX data range of the partition column. It works on *any* partitioned
+table, managed by PCS or not.
+
+```console
+$ pcs info -host db1 -database shop -table orders
+$ pcs info -host db1 -database shop -table orders -exact   # real COUNT(*)/MIN/MAX per partition
+```
+
+Built for before/after validation around upgrades and migrations:
+
+```console
+$ pcs info -host db1 -exact -json > before.json
+# ... upgrade / migration ...
+$ pcs info -host db1 -exact -json > after.json
+$ diff before.json after.json     # empty (bar timestamps) = partitions and data intact
+```
+
+Without `-exact`, row counts are `information_schema` estimates (cheap
+but jittery); with it, each partition is scanned for exact
+`COUNT(*)`/`MIN`/`MAX` — quiesce writes for a stable comparison.
+
 ## GCP Cloud SQL
 
 Two options:
